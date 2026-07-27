@@ -147,6 +147,9 @@
     border-radius:var(--radius);
     padding:12px 14px;
   }
+  .result-block + .result-block{
+    margin-top:18px;
+  }
 
   /* ---------- card (signature element: catalog index card) ---------- */
   .cards{
@@ -209,6 +212,90 @@
     margin-top:6px;
   }
 
+  /* ---------- feedback ---------- */
+  .fb{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-top:11px;
+    padding-top:9px;
+    border-top:1px solid var(--line);
+  }
+  .fb-label{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-right:2px;
+  }
+  .fb-btn{
+    background:var(--bg-elevated);
+    border:1px solid var(--line);
+    border-radius:20px;
+    color:var(--ink-soft);
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    padding:4px 10px;
+  }
+  .fb-btn:hover:not(:disabled){
+    border-color:var(--ink-soft);
+    color:var(--ink);
+  }
+  .fb-btn.on-yes{
+    color:var(--strong);
+    background:var(--strong-bg);
+    border-color:var(--strong);
+  }
+  .fb-btn.on-no{
+    color:var(--danger);
+    background:var(--bg-elevated);
+    border-color:var(--danger);
+  }
+  .fb-note{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.04em;
+    color:var(--ink-soft);
+  }
+  .fb-note.err{ color:var(--danger); }
+
+  .fb-group{ margin-top:10px; }
+  .fb-link{
+    background:none;
+    border:none;
+    padding:0;
+    color:var(--ink-soft);
+    font-family:var(--sans);
+    font-size:12.5px;
+    font-weight:500;
+    text-decoration:underline;
+    text-underline-offset:2px;
+  }
+  .fb-link:hover{ color:var(--ink); }
+  .fb-form{
+    display:flex;
+    gap:8px;
+    margin-top:8px;
+    align-items:flex-start;
+  }
+  .fb-form textarea{
+    flex:1;
+    resize:none;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:9px 11px;
+    font-family:var(--sans);
+    font-size:13.5px;
+    color:var(--ink);
+    background:var(--bg-elevated);
+  }
+  .fb-send{
+    padding:0 14px;
+    height:38px;
+    font-size:13px;
+  }
+
   /* ---------- typing indicator ---------- */
   .typing{
     align-self:flex-start;
@@ -236,14 +323,14 @@
   }
 
   /* ---------- input ---------- */
-  form{
+  #form{
     display:flex;
     gap:8px;
     padding:14px 16px 20px;
     border-top:1px solid var(--line);
     background:var(--bg);
   }
-  textarea{
+  #input{
     flex:1;
     resize:none;
     border:1px solid var(--line);
@@ -255,7 +342,7 @@
     background:var(--bg-elevated);
     max-height:120px;
   }
-  textarea:focus{
+  #input:focus{
     outline:2px solid var(--user);
     outline-offset:1px;
   }
@@ -300,10 +387,15 @@
 
 <script>
 // ==========================================================
-// НАСТРОЙКА: вставьте сюда production-URL вашего n8n webhook
-// (Webhook /match1 → вкладка Webhook URLs → Production URL)
+// НАСТРОЙКА: production-URL вебхуков n8n
+// (нода Webhook → вкладка Webhook URLs → Production URL)
 // ==========================================================
-const WEBHOOK_URL = 'https://analogi-mvp-danilm3.amvera.io/webhook/match';
+const WEBHOOK_URL  = 'https://analogi-mvp-danilm3.amvera.io/webhook/match';
+const FEEDBACK_URL = 'https://analogi-mvp-danilm3.amvera.io/webhook/feedback';
+
+// product_id для отзыва «ни один вариант не подошёл»: строки такого вида
+// не относятся к конкретной карточке и не попадают в mapping_gold (там только accepted).
+const NO_MATCH_PID = '__none__';
 
 const thread = document.getElementById('thread');
 const form = document.getElementById('form');
@@ -357,17 +449,157 @@ const SOURCE_LABEL = {
   rag: 'по смыслу из каталога'
 };
 
-function renderResults(payload){
+// ---------- отзывы (таблица feedback) ----------
+
+// Отправка одного отзыва. Валидация на стороне n8n требует
+// request_id + product_id + verdict; остальное — необязательно.
+async function sendFeedback(payload){
+  const res = await fetch(FEEDBACK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json().catch(() => ({}));
+  if (data && data.ok === false) throw new Error(data.error || 'отзыв отклонён');
+  return data;
+}
+
+// Если P1 не выделил иностранный продукт (foreign_product = null),
+// сам текст запроса — единственный контекст отзыва, кладём его в comment.
+function withQueryContext(ctx, comment){
+  const parts = [];
+  if (!ctx.foreign_product) parts.push('запрос: ' + ctx.query);
+  if (comment) parts.push(comment);
+  return parts.length ? parts.join(' | ') : null;
+}
+
+// Две кнопки под карточкой: голос уходит сразу, вердикт можно переключить.
+function cardFeedback(ctx, m){
+  const row = el('div', 'fb');
+  row.appendChild(el('span', 'fb-label', 'Этот вариант:'));
+
+  const yes = el('button', 'fb-btn', 'подходит');
+  const no  = el('button', 'fb-btn', 'не то');
+  yes.type = 'button'; no.type = 'button';
+  yes.setAttribute('aria-pressed', 'false');
+  no.setAttribute('aria-pressed', 'false');
+  const note = el('span', 'fb-note');
+
+  let current = null, busy = false;
+
+  async function vote(verdict){
+    if (busy || current === verdict) return;
+    busy = true;
+    yes.disabled = no.disabled = true;
+    note.className = 'fb-note';
+    note.textContent = '…';
+    try{
+      await sendFeedback({
+        request_id: ctx.request_id,
+        product_id: m.product_id,
+        verdict: verdict,
+        foreign_product: ctx.foreign_product || null,
+        comment: withQueryContext(ctx, null)
+      });
+      current = verdict;
+      const isYes = verdict === 'accepted';
+      yes.classList.toggle('on-yes', isYes);
+      no.classList.toggle('on-no', !isYes);
+      yes.setAttribute('aria-pressed', String(isYes));
+      no.setAttribute('aria-pressed', String(!isYes));
+      note.textContent = 'записали';
+    }catch(err){
+      note.className = 'fb-note err';
+      note.textContent = 'не отправилось — попробуйте ещё раз';
+    }finally{
+      busy = false;
+      yes.disabled = no.disabled = false;
+    }
+  }
+
+  yes.addEventListener('click', () => vote('accepted'));
+  no.addEventListener('click', () => vote('rejected'));
+  row.append(yes, no, note);
+  return row;
+}
+
+// Отзыв на весь результат: «ничего не подошло» + необязательный комментарий.
+// Пишется как rejected на служебный product_id — сигнал о дыре в каталоге/поиске.
+function groupFeedback(ctx, isEmpty){
+  const box = el('div', 'fb-group');
+  const link = el('button', 'fb-link',
+    isEmpty ? 'Подсказать, что искали' : 'Ничего не подошло');
+  link.type = 'button';
+  box.appendChild(link);
+
+  link.addEventListener('click', () => {
+    link.remove();
+    const wrap = el('div', 'fb-form');
+    const ta = el('textarea');
+    ta.rows = 2;
+    ta.placeholder = isEmpty
+      ? 'Какой продукт или функционал был нужен?'
+      : 'Что не так с вариантами? (необязательно)';
+    const btn = el('button', 'fb-send', 'Отправить');
+    btn.type = 'button';
+    wrap.append(ta, btn);
+    box.appendChild(wrap);
+    ta.focus();
+    scrollDown();
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = '…';
+      try{
+        await sendFeedback({
+          request_id: ctx.request_id,
+          product_id: NO_MATCH_PID,
+          verdict: 'rejected',
+          foreign_product: ctx.foreign_product || null,
+          comment: withQueryContext(ctx, ta.value.trim())
+        });
+        wrap.replaceWith(el('div', 'fb-note', 'спасибо, записали'));
+      }catch(err){
+        btn.disabled = false;
+        btn.textContent = 'Отправить';
+        const errNote = box.querySelector('.fb-note.err') || el('div', 'fb-note err');
+        errNote.textContent = 'не отправилось — попробуйте ещё раз';
+        box.appendChild(errNote);
+      }
+    });
+  });
+
+  return box;
+}
+
+// ---------- рендер ----------
+
+function renderResults(payload, query){
   const group = el('div', 'result-group');
 
   (payload.results || []).forEach(r => {
-    const head = el('div', 'result-head');
-    head.appendChild(el('span', 'fp', r.foreign_product || 'Запрос'));
-    if (r.source) head.appendChild(el('span', 'tag', SOURCE_LABEL[r.source] || r.source));
-    group.appendChild(head);
+    const block = el('div', 'result-block');
+    const ctx = {
+      request_id: payload.request_id,
+      foreign_product: r.foreign_product || null,
+      query: query
+    };
 
-    if (r.status === 'no_confident_match' || r.status === 'too_many_refine_query' || !r.matches || !r.matches.length) {
-      group.appendChild(el('div', 'result-empty', STATUS_LABEL[r.status] || 'Ничего не найдено.'));
+    const head = el('div', 'result-head');
+    // если P1 не выделил продукт — показываем сам запрос, а не безликое «Запрос»
+    head.appendChild(el('span', 'fp', r.foreign_product || ('«' + query + '»')));
+    if (r.source) head.appendChild(el('span', 'tag', SOURCE_LABEL[r.source] || r.source));
+    block.appendChild(head);
+
+    const empty = r.status === 'no_confident_match'
+      || r.status === 'too_many_refine_query'
+      || !r.matches || !r.matches.length;
+
+    if (empty) {
+      block.appendChild(el('div', 'result-empty', STATUS_LABEL[r.status] || 'Ничего не найдено.'));
+      if (payload.request_id) block.appendChild(groupFeedback(ctx, true));
+      group.appendChild(block);
       return;
     }
 
@@ -386,9 +618,13 @@ function renderResults(payload){
       card.appendChild(top);
 
       if (m.reason) card.appendChild(el('div', 'card-reason', m.reason));
+      // без request_id отзыв не примут — кнопки показываем только когда он есть
+      if (payload.request_id && m.product_id) card.appendChild(cardFeedback(ctx, m));
       cards.appendChild(card);
     });
-    group.appendChild(cards);
+    block.appendChild(cards);
+    if (payload.request_id) block.appendChild(groupFeedback(ctx, false));
+    group.appendChild(block);
   });
 
   thread.appendChild(group);
@@ -411,7 +647,7 @@ async function ask(query){
     if (data.status === 'clarification_needed') {
       addBotText(data.question || 'Уточните, пожалуйста, запрос.');
     } else if (data.results) {
-      renderResults(data);
+      renderResults(data, query);
     } else {
       addBotText('Пустой ответ от сервера.', true);
     }
