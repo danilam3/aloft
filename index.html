@@ -715,8 +715,8 @@
   .card-links .more{ margin-top:3px; }
   .card-links .site{ margin-top:6px; }
 
-  /* ---------- BDM вендора ----------
-     Контакт менеджера по развитию бизнеса, ведущего вендора продукта.
+  /* ---------- Ответственный менеджер ----------
+     Контакт менеджера Axoft, ведущего вендора продукта (BDM, при пустом BDM — OBDM).
      Имя — компактный чип; тап раскрывает почту с кнопкой «Копировать».
      Приходит полем m.bdm = [{name,email}] из таблицы vendor_bdm. */
   .card-bdm{
@@ -1824,13 +1824,15 @@ function cardLinks(m){
   return box;
 }
 
-// ---------- BDM вендора ----------
+// ---------- Ответственный менеджер ----------
 //
-// Контакт менеджера по развитию бизнеса (BDM), ведущего вендора этого продукта.
+// Контакт менеджера Axoft, ведущего вендора этого продукта. Основной — BDM;
+// если у вендора BDM не проставлен, берём OBDM (fallback). На карточке оба
+// показываются одинаково — «Ответственный менеджер».
 // Имя — компактный чип; тап раскрывает почту и кнопку «Копировать» (менеджеру
 // нужен адрес, чтобы написать). Приходит полем m.bdm = [{name, email}] из
-// таблицы vendor_bdm (у вендора бывает два BDM). Пусто — в реестре вендоров BDM
-// не проставлен или у него нет почты в выгрузке: тогда пишем «не назначен».
+// таблицы vendor_bdm (у вендора бывает два контакта). Пусто — ни BDM, ни OBDM
+// в реестре не проставлены или нет почты в выгрузке: тогда «менеджер не назначен».
 
 const BDM_CHEVRON = '<svg class="chev" viewBox="0 0 12 12" fill="none" aria-hidden="true">'
   + '<path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" stroke-width="1.6" '
@@ -1888,11 +1890,11 @@ function bdmPerson(p){
 
 function cardBdm(m){
   const box = el('div', 'card-bdm');
-  box.appendChild(el('b', null, 'BDM вендора'));
+  box.appendChild(el('b', null, 'Ответственный менеджер'));
   const list = (Array.isArray(m.bdm) ? m.bdm : [])
     .filter(p => p && p.name && p.email);
   if (!list.length){
-    box.appendChild(el('span', 'none', 'не назначен'));
+    box.appendChild(el('span', 'none', 'менеджер не назначен'));
     return box;
   }
   list.forEach(p => box.appendChild(bdmPerson(p)));
