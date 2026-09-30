@@ -864,6 +864,11 @@
     background:#FEF6F5;
     border-color:rgba(179,38,30,.55);
   }
+  .fb-btn.on-mid{
+    color:var(--partial);
+    background:var(--partial-bg);
+    border-color:rgba(154,100,0,.45);
+  }
   .fb-note{
     font-size:11px;
     letter-spacing:.02em;
@@ -1052,6 +1057,7 @@
   .fb-btn:hover:not(:disabled), .rate-btn:hover{ background:var(--bg-elevated); }
   .fb-btn.on-yes{ background:var(--strong-bg); }
   .fb-btn.on-no{ background:#FEF6F5; }
+  .fb-btn.on-mid{ background:var(--partial-bg); }
   .rate-btn[aria-pressed="true"]:hover{ background:var(--navy); color:#FFFFFF; }
   button:disabled{
     opacity:.4;
@@ -1220,9 +1226,12 @@
             <ul>
               <li>Прогоните <b>5–10 своих реальных запросов</b> — тех, с которыми к вам приходили
               заказчики. Придуманные примеры почти бесполезны: они не показывают дыр.</li>
-              <li>По каждому варианту нажмите <b>подходит</b> или <b>не то</b> — <b>в том числе
-              когда ответ верный</b>. Без нажатия правильный ответ никак не отличается от
-              случайного, и система его не запомнит.</li>
+              <li>По каждому варианту нажмите <b>подходит</b>, <b>частично</b> или <b>не то</b> —
+              <b>в том числе когда ответ верный</b>. Без нажатия правильный ответ никак не
+              отличается от случайного.</li>
+              <li>Закрывает задачу не целиком — <b>частично</b>, и одной фразой напишите, чего
+              не хватает. Не ставьте в таком случае «подходит»: из таких отметок собираются
+              готовые ответы, и частичная замена выдавалась бы за полную.</li>
               <li>Если не нашлось ничего — <b>«Подсказать, что искали»</b> и впишите, какой продукт
               вы ждали. Это самый ценный отзыв: он показывает, чего не хватает в каталоге.</li>
               <li>Что мешает или раздражает — в форму <b>«Обратная связь о сервисе»</b> внизу справа.
@@ -1319,12 +1328,16 @@
         <details>
           <summary>Где какие кнопки отзыва</summary>
           <div class="body">
-            <p>Под каждым вариантом — <b>подходит</b> и <b>не то</b>. Под всем списком —
-            <b>«Ничего не подошло»</b> и <b>«Подсказать, что искали»</b> с полем для комментария.
-            Отдельно, внизу справа, — форма <b>«Обратная связь о сервисе»</b>: она не про конкретный
-            ответ, а про сервис целиком.</p>
-            <p>Отмеченная «подходит» пара запоминается, и в следующий раз такой же запрос получает
-            ответ мгновенно — поэтому нажатие на верном ответе так же полезно, как на неверном.</p>
+            <p>Под каждым вариантом — <b>подходит</b>, <b>частично</b> и <b>не то</b>. «Частично»
+            раскрывает поле: напишите, чего не хватает, — без текста такой отзыв не отправится.
+            Под всем списком — <b>«Ничего не подошло»</b> и <b>«Подсказать, что искали»</b> с полем
+            для комментария. Отдельно, внизу справа, — форма <b>«Обратная связь о сервисе»</b>:
+            она не про конкретный ответ, а про сервис целиком.</p>
+            <p>Отзывы мы разбираем вручную. Пары, отмеченные «подходит» и подтвердившиеся
+            при разборе, добавляем в готовые — тогда такой же запрос получает ответ сразу, без
+            поиска. Поэтому нажатие на верном ответе так же полезно, как на неверном. Пары
+            с отметкой «частично» в готовые не попадают: по ним мы смотрим, чего не хватает
+            в описании продукта.</p>
             <p class="muted">Ошибиться нельзя — вердикт переключается. После нажатия появится
             «записали»; если написано «не отправилось» — нажмите ещё раз.</p>
           </div>
@@ -1509,24 +1522,40 @@ function withQueryContext(ctx, comment){
   return parts.length ? parts.join(' | ') : null;
 }
 
-// Две кнопки под карточкой: голос уходит сразу, вердикт можно переключить.
+// Три кнопки под карточкой: голос уходит сразу, вердикт можно переключить.
+// «частично» сначала раскрывает поле «чего не хватает» и уходит только с текстом:
+// без него частичный отзыв ничего не говорит — ради текста кнопка и заведена.
+// Частичную пару нельзя отмечать как «подходит»: из accepted досевается быстрый
+// путь, и частичная замена выдавалась бы там за полную.
 function cardFeedback(ctx, m){
+  const box = el('div');
   const row = el('div', 'fb');
   row.appendChild(el('span', 'fb-label', 'Этот вариант:'));
 
-  const yes = el('button', 'fb-btn', 'подходит');
-  const no  = el('button', 'fb-btn', 'не то');
-  yes.type = 'button'; no.type = 'button';
-  yes.setAttribute('aria-pressed', 'false');
-  no.setAttribute('aria-pressed', 'false');
+  const BTN = {
+    accepted: el('button', 'fb-btn', 'подходит'),
+    partial:  el('button', 'fb-btn', 'частично'),
+    rejected: el('button', 'fb-btn', 'не то')
+  };
+  const ON = { accepted: 'on-yes', partial: 'on-mid', rejected: 'on-no' };
+  const buttons = Object.values(BTN);
+  buttons.forEach(b => { b.type = 'button'; b.setAttribute('aria-pressed', 'false'); });
+  BTN.partial.setAttribute('aria-expanded', 'false');
   const note = el('span', 'fb-note');
 
-  let current = null, busy = false;
+  let current = null, busy = false, form = null, partialText = '';
 
-  async function vote(verdict){
-    if (busy || current === verdict) return;
+  function paint(){
+    for (const v in BTN){
+      BTN[v].classList.toggle(ON[v], current === v);
+      BTN[v].setAttribute('aria-pressed', String(current === v));
+    }
+  }
+
+  async function vote(verdict, comment){
+    if (busy) return false;
     busy = true;
-    yes.disabled = no.disabled = true;
+    buttons.forEach(b => { b.disabled = true; });
     note.className = 'fb-note';
     note.textContent = '…';
     try{
@@ -1535,28 +1564,81 @@ function cardFeedback(ctx, m){
         product_id: m.product_id,
         verdict: verdict,
         foreign_product: ctx.foreign_product || null,
-        comment: withQueryContext(ctx, null)
+        comment: withQueryContext(ctx, comment || null)
       });
       current = verdict;
-      const isYes = verdict === 'accepted';
-      yes.classList.toggle('on-yes', isYes);
-      no.classList.toggle('on-no', !isYes);
-      yes.setAttribute('aria-pressed', String(isYes));
-      no.setAttribute('aria-pressed', String(!isYes));
+      paint();
       note.textContent = 'записали';
+      return true;
     }catch(err){
       note.className = 'fb-note err';
       note.textContent = 'не отправилось — попробуйте ещё раз';
+      return false;
     }finally{
       busy = false;
-      yes.disabled = no.disabled = false;
+      buttons.forEach(b => { b.disabled = false; });
     }
   }
 
-  yes.addEventListener('click', () => vote('accepted'));
-  no.addEventListener('click', () => vote('rejected'));
-  row.append(yes, no, note);
-  return row;
+  function closeForm(){
+    if (!form) return;
+    form.remove();
+    form = null;
+    BTN.partial.setAttribute('aria-expanded', 'false');
+  }
+
+  // Повторное нажатие на «частично» после отправки снова открывает поле
+  // с прежним текстом — чтобы дописать или поправить.
+  function openForm(){
+    const wrap = el('div', 'fb-form');
+    const ta = el('textarea');
+    ta.rows = 2;
+    ta.maxLength = 1000;
+    ta.placeholder = 'Чего не хватает? Например: нет интеграции с Active Directory';
+    ta.value = partialText;
+    const send = el('button', 'fb-send', 'Отправить');
+    send.type = 'button';
+    wrap.append(ta, send);
+    box.appendChild(wrap);
+    form = wrap;
+    BTN.partial.setAttribute('aria-expanded', 'true');
+    ta.focus();
+
+    send.addEventListener('click', async () => {
+      const text = ta.value.trim();
+      if (!text){
+        note.className = 'fb-note err';
+        note.textContent = 'напишите, чего не хватает — без этого «частично» не отправится';
+        ta.focus();
+        return;
+      }
+      send.disabled = true;
+      send.textContent = '…';
+      if (await vote('partial', text)){
+        partialText = text;
+        closeForm();
+      }else{
+        send.disabled = false;
+        send.textContent = 'Отправить';
+      }
+    });
+  }
+
+  BTN.partial.addEventListener('click', () => {
+    if (busy) return;
+    if (form) closeForm(); else openForm();
+  });
+  for (const v of ['accepted', 'rejected']){
+    BTN[v].addEventListener('click', () => {
+      if (busy) return;
+      closeForm();
+      if (current !== v) vote(v, null);
+    });
+  }
+
+  row.append(BTN.accepted, BTN.partial, BTN.rejected, note);
+  box.appendChild(row);
+  return box;
 }
 
 // Отзыв на весь результат: «ничего не подошло» + необязательный комментарий.
