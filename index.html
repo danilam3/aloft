@@ -186,6 +186,95 @@
     white-space:nowrap;
   }
 
+  /* ---------- кто спрашивает: плашка в шапке и окно имени ---------- */
+  .header-end{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+  }
+  header button.who{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    min-width:0;
+    max-width:300px;
+    height:auto;
+    padding:4px 12px;
+    border:1px solid rgba(255,255,255,.26);
+    border-radius:999px;
+    background:rgba(255,255,255,.06);
+    color:#FFFFFF;
+    font-size:12px;
+    font-weight:500;
+    letter-spacing:0;
+    white-space:nowrap;
+  }
+  header button.who[hidden]{ display:none; }   /* display:flex выше перебил бы атрибут hidden */
+  header button.who:hover:not(:disabled){ background:rgba(255,255,255,.14); }
+  header button.who:focus-visible{ box-shadow:0 0 0 3.5px rgba(255,255,255,.5); }
+  .who-label{ color:rgba(255,255,255,.74); }
+  .who-name{ overflow:hidden; text-overflow:ellipsis; }
+  .who-change{ color:var(--teal); }
+
+  .who-dialog{
+    width:min(420px, calc(100vw - 32px));
+    border:none;
+    border-radius:var(--radius-lg);
+    padding:24px 24px 20px;
+    background:var(--bg-elevated);
+    color:var(--ink);
+    box-shadow:var(--shadow-raise);
+    font-family:var(--sans);
+  }
+  .who-dialog::backdrop{
+    background:rgba(22,30,56,.48);
+    backdrop-filter:blur(3px);
+    -webkit-backdrop-filter:blur(3px);
+  }
+  .who-dialog h2{
+    margin:0 0 8px;
+    font-size:19px;
+    font-weight:600;
+    letter-spacing:-0.019em;
+  }
+  .who-sub{
+    margin:0 0 16px;
+    font-size:13.5px;
+    line-height:1.5;
+    color:var(--ink-soft);
+  }
+  .who-dialog input{
+    width:100%;
+    height:40px;
+    border:1px solid var(--line-strong);
+    border-radius:var(--radius-sm);
+    padding:0 12px;
+    font-family:var(--sans);
+    font-size:14.5px;
+    color:var(--ink);
+    background:var(--bg-elevated);
+    transition:box-shadow var(--dur) ease, border-color var(--dur) ease;
+  }
+  .who-err{
+    min-height:17px;
+    margin:7px 0 10px;
+    font-size:12px;
+    color:var(--danger);
+  }
+  .who-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+  }
+  .who-actions button{ height:38px; font-size:13.5px; }
+  .who-actions button.who-cancel{
+    background:transparent;
+    color:var(--ink-soft);
+    border:1px solid var(--line-strong);
+  }
+  .who-actions button.who-cancel:hover:not(:disabled){ background:var(--bg); }
+
   .tabs{display:none; gap:6px;}
   .tab{
     background:rgba(255,255,255,.06);
@@ -1093,6 +1182,9 @@
   @media (max-width:1023px){
     .tabs{display:flex;}
     .stage{display:none;}
+    /* плашка имени — в строку с логотипом, вкладки — следующей строкой */
+    .header-end{order:1;}
+    .tabs{order:2;}
     .workspace{flex-direction:column;}
     .side{
       flex:1 1 auto;
@@ -1113,6 +1205,10 @@
     .logo{height:20px;}
     h1{font-size:17px;}
     .eyebrow{display:none;}
+    /* рядом с логотипом места на одно имя: «Вы:» и «сменить» убираем,
+       нажатие на плашку всё так же открывает окно смены имени */
+    header button.who{max-width:92px; padding:4px 10px;}
+    .who-label, .who-change{display:none;}
     .thread{padding:18px 14px 8px;}
     #form{margin:8px 12px 15px;}
     .hero{padding:2px 12px 16px;}
@@ -1166,7 +1262,15 @@
       <button class="tab" type="button" role="tab" data-zone="guide" aria-selected="false">Инструкция</button>
       <button class="tab" type="button" role="tab" data-zone="fb"    aria-selected="false">Отзыв</button>
     </nav>
-    <span class="stage">пилот · сбор обратной связи</span>
+    <div class="header-end">
+      <span class="stage">пилот · сбор обратной связи</span>
+      <!-- Чьим именем подписываются запросы. Видна, когда имя уже введено. -->
+      <button class="who" id="who" type="button" title="Сменить имя" hidden>
+        <span class="who-label">Вы:</span>
+        <span class="who-name" id="who-name"></span>
+        <span class="who-change">· сменить</span>
+      </button>
+    </div>
   </header>
 
   <main class="workspace">
@@ -1237,6 +1341,10 @@
               <li>Что мешает или раздражает — в форму <b>«Обратная связь о сервисе»</b> внизу справа.
               Своими словами, коротко.</li>
             </ul>
+            <p><b>Имя.</b> При первом заходе страница спросит имя и фамилию — один раз, дальше
+            браузер помнит. Им подписываются ваши запросы и отзывы: так мы видим, чей это подбор,
+            и можем уточнить у вас, если он не удался. Сменить — кнопка <b>«Вы: … · сменить»</b>
+            вверху. В другом браузере или после очистки данных сайта имя спросят заново.</p>
             <p><b>На что посмотреть отдельно:</b> в самом низу карточки появился
             <b>Ответственный менеджер</b> — тот, кто ведёт вендора. Проверьте, тот ли это человек:
             контакты взяты из реестра вендоров, и там бывает устаревшее. Если фамилия неверная —
@@ -1383,7 +1491,6 @@
         смысл пилота.</p>
         <form class="svc" id="svc-form">
           <div class="svc-row">
-            <input type="text" id="svc-author" placeholder="Кто вы (запомним)" autocomplete="name" maxlength="120">
             <select id="svc-category" aria-label="Тип отзыва">
               <option value="">Тип отзыва…</option>
               <option value="quality">Плохой ответ</option>
@@ -1414,6 +1521,23 @@
   </main>
 </div>
 
+<!-- Окно имени. При первом заходе открывается само и не закрывается, пока имя
+     не введено: без имени запрос не уходит. Потом — по кнопке «Вы: … · сменить». -->
+<dialog class="who-dialog" id="who-dialog" aria-labelledby="who-title">
+  <form id="who-form" novalidate>
+    <h2 id="who-title">Как вас зовут?</h2>
+    <p class="who-sub">Один раз — дальше этот браузер запомнит. Имя уйдёт вместе с вашими
+    запросами: так мы видим, чей это подбор, и можем уточнить у вас, если он не удался.</p>
+    <input type="text" id="who-input" placeholder="Имя и фамилия" autocomplete="name"
+           maxlength="80" aria-describedby="who-err">
+    <p class="who-err" id="who-err" role="alert"></p>
+    <div class="who-actions">
+      <button type="button" class="who-cancel" id="who-cancel" hidden>Отмена</button>
+      <button type="submit" id="who-save">Продолжить</button>
+    </div>
+  </form>
+</dialog>
+
 <script>
 // ==========================================================
 // НАСТРОЙКА: production-URL вебхуков n8n
@@ -1436,6 +1560,41 @@ const chatInner = document.querySelector('.chat-inner');
 // Последний подбор в этой вкладке — контекст для отзыва о сервисе:
 // без него «предложило ерунду» невозможно связать с конкретной выдачей.
 let lastAsk = { request_id: null, query: null };
+
+// ---------- кто спрашивает ----------
+
+// Имя менеджер вводит один раз, при первом заходе: без него запрос не уходит.
+// Дальше оно живёт в localStorage этого браузера и отправляется с каждым
+// запросом — n8n пишет его в search_log.author. Отзывы по карточкам отдельно
+// не подписываем: они привязаны к запросу по request_id.
+// Это не вход с паролем: что менеджер написал, то и пишем.
+//
+// client_id — случайный номер браузера, создаётся один раз и уходит рядом с
+// именем. Имя пишут от руки, и в pilot_feedback оно уже бывало то латиницей,
+// то вовсе не именем; по номеру запросы одного человека склеиваются всё равно.
+const WHO_NAME_KEY   = 'who_name';
+const WHO_CLIENT_KEY = 'who_client';
+// Имя из прежнего поля формы отзыва. Только подсказка в окне, а не готовое
+// имя: в это поле однажды вписали сам отзыв.
+const OLD_AUTHOR_KEY = 'pilot_author';
+
+// localStorage бывает запрещён настройками браузера — тогда живём в памяти
+// вкладки: имя спросят при каждом заходе, но работать можно.
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function lsSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+
+function cleanName(s){ return String(s || '').replace(/\s+/g, ' ').trim().slice(0, 80); }
+// Имя и фамилия: хотя бы два слова, в каждом не меньше двух букв.
+function nameOk(s){ return cleanName(s).split(' ').filter(w => /\p{L}{2,}/u.test(w)).length >= 2; }
+
+function newClientId(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+const who = { name: cleanName(lsGet(WHO_NAME_KEY)), client_id: lsGet(WHO_CLIENT_KEY) };
+if (!nameOk(who.name)) who.name = '';
+if (!who.client_id) { who.client_id = newClientId(); lsSet(WHO_CLIENT_KEY, who.client_id); }
 
 function el(tag, cls, text){
   const e = document.createElement(tag);
@@ -2118,7 +2277,7 @@ async function ask(query){
     const res = await fetch(WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ query, author: who.name, client_id: who.client_id })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
@@ -2144,6 +2303,9 @@ form.addEventListener('submit', (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text) return;
+  // Страховка к окну имени: без имени запрос не уходит, текст остаётся в поле
+  // и уйдёт сам после ввода имени.
+  if (!who.name) { whoAsk(true); return; }
   chatInner.classList.remove('is-empty');   // старт диалога — обычная чат-раскладка
   addUserMsg(text);
   input.value = '';
@@ -2171,6 +2333,67 @@ input.addEventListener('input', () => {
   input.style.height = Math.min(input.scrollHeight, 120) + 'px';
 });
 
+// ---------- окно имени и плашка «Вы: …» ----------
+
+const whoBtn = document.getElementById('who');
+const whoNameEl = document.getElementById('who-name');
+const whoDialog = document.getElementById('who-dialog');
+const whoForm = document.getElementById('who-form');
+const whoInput = document.getElementById('who-input');
+const whoErr = document.getElementById('who-err');
+const whoCancel = document.getElementById('who-cancel');
+let whoPending = false;   // в поле ждёт запрос: отправить сразу после ввода имени
+
+function whoRender(){
+  whoBtn.hidden = !who.name;
+  whoNameEl.textContent = who.name;
+}
+
+function whoAsk(pending){
+  whoPending = !!pending;
+  whoInput.value = who.name || cleanName(lsGet(OLD_AUTHOR_KEY));
+  whoErr.textContent = '';
+  whoCancel.hidden = !who.name;     // в первый раз отменять нечего: без имени не работаем
+  if (!whoDialog.open) whoDialog.showModal();
+  whoInput.focus();
+  whoInput.select();
+}
+
+whoForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = cleanName(whoInput.value);
+  if (!nameOk(name)) {
+    whoErr.textContent = 'Нужны имя и фамилия — например, «Анна Смирнова».';
+    whoInput.focus();
+    return;
+  }
+  who.name = name;
+  lsSet(WHO_NAME_KEY, name);
+  whoRender();
+  whoDialog.close();
+  if (whoPending) { whoPending = false; form.requestSubmit(); }
+});
+whoCancel.addEventListener('click', () => { whoPending = false; whoDialog.close(); });
+// Esc закрывает <dialog> сам — пока имени нет, не даём. Chrome, если окно
+// открылось без нажатия пользователя (а при первом заходе так и есть), отмену
+// не спрашивает и закрывает сразу — поэтому ещё и открываем обратно.
+whoDialog.addEventListener('cancel', (e) => { if (!who.name) e.preventDefault(); });
+whoDialog.addEventListener('close', () => {
+  if (who.name) return;
+  whoDialog.showModal();
+  whoInput.focus();
+});
+whoBtn.addEventListener('click', () => whoAsk(false));
+// Имя сменили в другой вкладке — подхватываем, чтобы не подписывать старым.
+window.addEventListener('storage', (e) => {
+  if (e.key !== WHO_NAME_KEY) return;
+  who.name = nameOk(e.newValue) ? cleanName(e.newValue) : '';
+  whoRender();
+});
+
+whoRender();
+if (!who.name) whoAsk(false);
+
 // ---------- переключатель зон (узкий экран) ----------
 
 const tabs = document.getElementById('tabs');
@@ -2185,21 +2408,17 @@ tabs.addEventListener('click', (e) => {
 // ---------- отзыв о сервисе (таблица pilot_feedback) ----------
 
 const svcForm = document.getElementById('svc-form');
-const svcAuthor = document.getElementById('svc-author');
 const svcCategory = document.getElementById('svc-category');
 const svcMessage = document.getElementById('svc-message');
 const svcSend = document.getElementById('svc-send');
 const svcNote = document.getElementById('svc-note');
 const svcCtx = document.getElementById('svc-ctx');
 const svcRate = document.getElementById('svc-rate');
-const AUTHOR_KEY = 'pilot_author';
 
 let svcRating = null;
 
-// Имя менеджер вводит один раз: на пилоте из 2–3 человек важно понимать, чей
-// отзыв, но заставлять представляться при каждой отправке — верный способ
-// получить пустое поле.
-try { svcAuthor.value = localStorage.getItem(AUTHOR_KEY) || ''; } catch(e) {}
+// Своего поля имени у формы больше нет: отзыв подписывается тем же именем, что
+// и запросы (окно имени при первом заходе). Два поля разошлись бы.
 
 svcRate.addEventListener('click', (e) => {
   const btn = e.target.closest('.rate-btn');
@@ -2239,7 +2458,7 @@ svcForm.addEventListener('submit', async (e) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        author: svcAuthor.value.trim() || null,
+        author: who.name || null,
         category: svcCategory.value || null,
         rating: svcRating,
         message: message,
@@ -2251,7 +2470,6 @@ svcForm.addEventListener('submit', async (e) => {
     const data = await res.json().catch(() => ({}));
     if (data && data.ok === false) throw new Error(data.error || 'отзыв отклонён');
 
-    try { localStorage.setItem(AUTHOR_KEY, svcAuthor.value.trim()); } catch(e) {}
     svcMessage.value = '';
     svcCategory.value = '';
     svcRating = null;
