@@ -632,6 +632,90 @@
   .result-block + .result-block{
     margin-top:20px;
   }
+  /* Пустой ответ объясняет себя: что система поняла, что было рядом, что делать */
+  .empty-lead{ color:var(--ink); font-weight:600; }
+  .empty-why{
+    margin:7px 0 0;
+    padding:0;
+    list-style:none;
+    font-size:13px;
+    line-height:1.5;
+  }
+  .empty-why li + li{ margin-top:3px; }
+  .empty-why b{ font-weight:600; color:var(--ink); }
+  .empty-next{
+    margin-top:8px;
+    font-size:12.5px;
+    line-height:1.5;
+  }
+  /* Подпись под уточняющим вопросом: ответ уйдёт вместе с исходным запросом */
+  .clar-hint{
+    align-self:flex-start;
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px 10px;
+    align-items:baseline;
+    margin-top:-6px;
+    padding-left:4px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .clar-hint .fb-link{ font-size:12px; }
+  /* Сохранённый ответ из «Недавних запросов» */
+  .saved-note{
+    align-self:flex-start;
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px 10px;
+    align-items:baseline;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+
+  /* ---------- недавние запросы на пустом экране ---------- */
+  .recent{
+    margin:24px auto 0;
+    max-width:30em;
+    text-align:left;
+  }
+  .recent[hidden]{ display:none; }
+  .recent-title{
+    margin:0 0 7px 3px;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .recent-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    background:var(--bg-elevated);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);
+    /* 20 строк не должны выдавливать поле ввода: видно около шести, остальное — прокруткой */
+    max-height:228px;
+    overflow-y:auto;
+  }
+  .recent-list li + li{ border-top:1px solid var(--line); }
+  .recent-item{
+    width:100%;
+    display:flex;
+    gap:12px;
+    align-items:baseline;
+    justify-content:space-between;
+    background:none;
+    color:var(--ink);
+    border-radius:0;
+    padding:9px 13px;
+    font-size:13px;
+    font-weight:500;
+    text-align:left;
+  }
+  .recent-q{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .recent-t{ flex:none; font-size:11.5px; font-weight:400; color:var(--ink-soft); }
 
   /* ---------- card ---------- */
   .cards{
@@ -1144,6 +1228,10 @@
   button:active:not(:disabled){ transform:scale(.97); }
   button:hover:not(:disabled){ background:var(--teal-dark); }
   .fb-btn:hover:not(:disabled), .rate-btn:hover{ background:var(--bg-elevated); }
+  /* Ссылки-кнопки без заливки: общее правило выше красило их в бирюзу на ховере */
+  .fb-link:hover:not(:disabled){ background:none; }
+  .recent-item:hover:not(:disabled){ background:var(--bg); }
+  .recent-item:active:not(:disabled){ transform:none; }
   .fb-btn.on-yes{ background:var(--strong-bg); }
   .fb-btn.on-no{ background:#FEF6F5; }
   .fb-btn.on-mid{ background:var(--partial-bg); }
@@ -1300,6 +1388,12 @@
             <button class="chip" type="button" data-q="нужно вместо Confluence, база знаний, под Astra Linux">аналог&nbsp;Confluence</button>
             <button class="chip" type="button" data-q="система учёта заявок от сотрудников с личным кабинетом">учёт&nbsp;заявок сотрудников</button>
           </div>
+          <!-- Последние ответы из памяти этого браузера: вернуться к ним после
+               перезагрузки, не спрашивая заново. Заполняется из historyRender(). -->
+          <div class="recent" id="recent" hidden>
+            <div class="recent-title">Недавние запросы</div>
+            <ul class="recent-list" id="recent-list"></ul>
+          </div>
         </div>
 
         <form id="form">
@@ -1426,10 +1520,17 @@
             не проставлен ни BDM, ни OBDM. Это не значит, что вести некому — значит,
             спрашивайте по обычным каналам.</p>
             <p><b>2. «Нет уверенного совпадения»</b> — ничего подходящего не нашлось, и система
-            <b>не стала придумывать</b>. Так задумано, встречается примерно в трети запросов.
-            Нажмите «Подсказать, что искали» — это самый ценный отзыв, он показывает дыры в каталоге.</p>
-            <p><b>3. «Уточните, пожалуйста, запрос»</b> — данных не хватило, ответьте новым сообщением.
-            Бывает и «слишком много вариантов» — тогда добавьте деталей.</p>
+            <b>не стала придумывать</b>. Так задумано. Под ответом видно, как система поняла
+            запрос и что было ближе всего в каталоге: поняла неверно — переформулируйте, верно —
+            аналога в портфеле, возможно, нет. Нажмите «Подсказать, что искали» — это самый
+            ценный отзыв, он показывает дыры в каталоге.</p>
+            <p><b>3. «Уточните, пожалуйста, запрос»</b> — данных не хватило. Просто ответьте на
+            вопрос: ответ уйдёт вместе с исходным запросом. Хотите спросить о другом — нажмите
+            «Спросить о другом». Бывает и «слишком много вариантов» — тогда добавьте деталей.</p>
+            <p><b>4. «Система не успела проверить варианты» или «Сервис сейчас не ответил»</b> — это
+            сбой, а не ответ. Повторите запрос через минуту: текст останется в поле.</p>
+            <p><b>Недавние запросы.</b> На стартовом экране — последние 20 ответов в этом браузере.
+            Открыть сохранённый ответ можно без нового запроса.</p>
           </div>
         </details>
 
@@ -1636,8 +1737,42 @@ function scrollDown(){
 
 const STATUS_LABEL = {
   no_confident_match: 'нет уверенного совпадения',
-  too_many_refine_query: 'слишком много вариантов — уточните'
+  too_many_refine_query: 'слишком много вариантов — уточните',
+  ranker_error: 'система не успела проверить варианты'
 };
+// Что делать дальше — по статусу. Голое «нет уверенного совпадения» получило
+// худшую оценку пилота (1 из 5, 30.09): вердикт был верный, а подсказки не было.
+const STATUS_NEXT = {
+  no_confident_match: 'Если система поняла запрос неверно — переформулируйте: назовите продукт '
+    + 'и что он делает. Если поняла верно — возможно, аналога в портфеле нет: уточните у BDM '
+    + 'вендора или подскажите ниже, что искали.',
+  too_many_refine_query: 'Добавьте деталей: для чего продукт, сколько пользователей, какая ОС, '
+    + 'нужен ли реестр.',
+  ranker_error: 'Это сбой, а не ответ: повторите запрос через минуту.'
+};
+
+// Пустой ответ: что система поняла (класс решения), что было ближе всего в
+// каталоге и что делать дальше. Поля solution_classes и near присылает воркфлоу;
+// у старого воркфлоу их нет — тогда остаются заголовок и подсказка.
+function emptyExplain(r){
+  const box = el('div', 'result-empty');
+  box.appendChild(el('div', 'empty-lead', STATUS_LABEL[r.status] || 'Ничего не найдено.'));
+  const why = el('ul', 'empty-why');
+  const line = (label, text) => {
+    const li = el('li');
+    li.append(el('b', null, label), document.createTextNode(text));
+    why.appendChild(li);
+  };
+  if (r.foreign_product) line('Искали замену: ', r.foreign_product);
+  if (r.solution_classes && r.solution_classes.length) line('Класс решения: ', r.solution_classes.join('; '));
+  const near = (r.near || []).filter(n => n && n.name);
+  if (near.length) line('Ближе всего в каталоге: ',
+    near.map(n => n.vendor && n.vendor !== n.name ? n.name + ' (' + n.vendor + ')' : n.name).join(', ')
+    + (r.status === 'ranker_error' ? ' — не проверены.' : ' — система сочла их неподходящими.'));
+  if (why.children.length) box.appendChild(why);
+  if (STATUS_NEXT[r.status]) box.appendChild(el('div', 'empty-next', STATUS_NEXT[r.status]));
+  return box;
+}
 const SOURCE_LABEL = {
   mapping: 'из таблицы маппинга',
   rag: 'по смыслу из каталога'
@@ -2192,7 +2327,9 @@ function cardBdm(m){
 
 // ---------- рендер ----------
 
-function renderResults(payload, query){
+// label — что показать в заголовке вместо запроса: после уточнения query
+// склеен из исходного запроса, вопроса и ответа, а в заголовок нужен исходный.
+function renderResults(payload, query, label){
   const group = el('div', 'result-group');
 
   (payload.results || []).forEach(r => {
@@ -2205,7 +2342,7 @@ function renderResults(payload, query){
 
     const head = el('div', 'result-head');
     // если P1 не выделил продукт — показываем сам запрос, а не безликое «Запрос»
-    head.appendChild(el('span', 'fp', r.foreign_product || ('«' + query + '»')));
+    head.appendChild(el('span', 'fp', r.foreign_product || ('«' + (label || query) + '»')));
     if (r.source) {
       const label = sourceLabel(r);
       const tg = el('span', 'tag', label);
@@ -2216,11 +2353,13 @@ function renderResults(payload, query){
 
     const empty = r.status === 'no_confident_match'
       || r.status === 'too_many_refine_query'
+      || r.status === 'ranker_error'
       || !r.matches || !r.matches.length;
 
     if (empty) {
-      block.appendChild(el('div', 'result-empty', STATUS_LABEL[r.status] || 'Ничего не найдено.'));
-      if (payload.request_id) block.appendChild(groupFeedback(ctx, true));
+      block.appendChild(emptyExplain(r));
+      // Сбой — не повод для отзыва «ничего не подошло»: в каталоге дыры нет
+      if (payload.request_id && r.status !== 'ranker_error') block.appendChild(groupFeedback(ctx, true));
       group.appendChild(block);
       return;
     }
@@ -2268,7 +2407,60 @@ function renderResults(payload, query){
   scrollDown();
 }
 
-async function ask(query){
+// ---------- уточняющий вопрос ----------
+
+// Система ждёт ответа на свой уточняющий вопрос. Тогда следующее сообщение уходит
+// вместе с исходным запросом и вопросом: P1 видит одно сообщение за раз, и ответ
+// без контекста разбирает как новый запрос. 30.10: «Сервера B300 аналоги» →
+// «уточните производителя» → «любой вендор» → разобрано как СКЗИ «Окуляр ГОСТ».
+// root — исходный запрос (для заголовка ответа), query — всё, что уже склеено.
+let clar = null;
+const CLAR_MAX = 2000;
+
+function withClar(text){
+  if (!clar) return text;
+  const tail = '\nУточняющий вопрос: ' + clar.question + '\nОтвет: ' + text;
+  // Цепочка уточнений длиннее предела — оставляем исходный запрос и последний шаг
+  return (clar.query + tail).length <= CLAR_MAX ? clar.query + tail : clar.root + tail;
+}
+
+function clarHintRemove(){
+  const h = document.getElementById('clar-hint');
+  if (h) h.remove();
+}
+
+function clarHintAdd(){
+  clarHintRemove();
+  const box = el('div', 'clar-hint');
+  box.id = 'clar-hint';
+  box.appendChild(el('span', null, 'Ответ уйдёт вместе с исходным запросом.'));
+  const reset = el('button', 'fb-link', 'Спросить о другом');
+  reset.type = 'button';
+  reset.addEventListener('click', () => {
+    clar = null;
+    box.replaceChildren(el('span', null, 'Следующее сообщение — новый запрос.'));
+    input.focus();
+  });
+  box.appendChild(reset);
+  thread.appendChild(box);
+  scrollDown();
+}
+
+// Текст для менеджера, а не для разработчика. Код ошибки — в скобках: по нему
+// и времени запуск находится в n8n.
+function failText(err){
+  const why = err instanceof TypeError ? 'нет связи с сервером' : err.message;
+  return 'Сервис сейчас не ответил (' + why + '). Текст запроса вернули в поле — '
+    + 'повторите через минуту. Не помогает — напишите во вкладке «Отзыв».';
+}
+
+// text — что набрал менеджер; label — заголовок ответа (для повтора из истории).
+async function ask(text, label){
+  const prev = clar;
+  const query = withClar(text);
+  const root = label || (prev ? prev.root : text);
+  clar = null;
+  clarHintRemove();
   const typing = addTyping();
   sendBtn.disabled = true;
   lastAsk = { request_id: null, query: query };
@@ -2285,19 +2477,106 @@ async function ask(query){
     if (data.request_id) lastAsk.request_id = data.request_id;
 
     if (data.status === 'clarification_needed') {
-      addBotText(data.question || 'Уточните, пожалуйста, запрос.');
+      const question = data.question || 'Уточните, пожалуйста, запрос.';
+      addBotText(question);
+      clar = { root, query, question };
+      clarHintAdd();
     } else if (data.results) {
-      renderResults(data, query);
+      renderResults(data, query, root);
+      historySave(root, query, data);
     } else {
       addBotText('Пустой ответ от сервера.', true);
     }
   } catch(err){
     removeTyping(typing);
-    addBotText('Не удалось получить ответ (' + err.message + '). Проверьте адрес webhook и CORS-настройки в n8n.', true);
+    addBotText(failText(err), true);
+    // Повтор одним нажатием: текст — обратно в поле, уточнение — в силе
+    if (!input.value.trim()) { input.value = text; input.dispatchEvent(new Event('input')); }
+    if (prev) { clar = prev; clarHintAdd(); }
   } finally {
     sendBtn.disabled = false;
   }
 }
+
+// ---------- недавние запросы ----------
+
+// Ответы последних запросов — в памяти этого браузера, чтобы вернуться к ним после
+// перезагрузки (отзыв 02.10: «вчера система выдала перечень, сегодня — ничего, а
+// истории не видно»). Хранится готовый ответ: открыть его — не значит спросить
+// заново. Память у каждого адреса своя, как и имя.
+const HISTORY_KEY = 'history_v1';
+const HISTORY_MAX = 20;
+
+function historyLoad(){
+  try {
+    const a = JSON.parse(lsGet(HISTORY_KEY) || '[]');
+    return Array.isArray(a) ? a.filter(h => h && h.data && h.label) : [];
+  } catch(e){ return []; }
+}
+
+function historySave(label, query, data){
+  let a = historyLoad().filter(h => !data.request_id || h.data.request_id !== data.request_id);
+  a.unshift({ t: Date.now(), label, query, data });
+  a = a.slice(0, HISTORY_MAX);
+  // Около 5 МБ на адрес: не влезло — выкидываем самые старые. Память запрещена
+  // вовсе — каждая попытка бросает, список опустеет, и ничего не сохранится.
+  while (a.length){
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(a)); break; }
+    catch(e){ a.pop(); }
+  }
+  historyRender();
+}
+
+function historyWhen(t){
+  return new Date(t).toLocaleString('ru-RU',
+    { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function historyRender(){
+  const box = document.getElementById('recent');
+  const list = document.getElementById('recent-list');
+  const a = historyLoad();
+  box.hidden = !a.length;
+  list.replaceChildren(...a.map((h, i) => {
+    const li = el('li');
+    const b = el('button', 'recent-item');
+    b.type = 'button';
+    b.dataset.i = i;
+    b.title = h.label;
+    b.append(el('span', 'recent-q', h.label), el('span', 'recent-t', historyWhen(h.t)));
+    li.appendChild(b);
+    return li;
+  }));
+}
+
+function historyOpen(h){
+  chatInner.classList.remove('is-empty');
+  clar = null;
+  clarHintRemove();
+  addUserMsg(h.label);
+  const note = el('div', 'saved-note');
+  note.appendChild(el('span', null,
+    'Сохранённый ответ от ' + historyWhen(h.t) + ' — каталог с тех пор мог измениться.'));
+  const again = el('button', 'fb-link', 'Спросить заново');
+  again.type = 'button';
+  again.addEventListener('click', () => {
+    if (!who.name) { whoAsk(false); return; }
+    addUserMsg(h.label);
+    ask(h.query, h.label);
+  });
+  note.appendChild(again);
+  thread.appendChild(note);
+  renderResults(h.data, h.query, h.label);
+  lastAsk = { request_id: h.data.request_id || null, query: h.query };
+  svcUpdateCtx();
+}
+
+document.getElementById('recent-list').addEventListener('click', (e) => {
+  const b = e.target.closest('.recent-item');
+  if (!b) return;
+  const h = historyLoad()[Number(b.dataset.i)];
+  if (h) historyOpen(h);
+});
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
@@ -2392,6 +2671,7 @@ window.addEventListener('storage', (e) => {
 });
 
 whoRender();
+historyRender();
 if (!who.name) whoAsk(false);
 
 // ---------- переключатель зон (узкий экран) ----------
