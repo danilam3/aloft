@@ -621,6 +621,7 @@
     border-color:transparent;
     font-weight:600;
   }
+  .card-origin{ margin-top:6px; }
   .result-empty{
     font-size:13.5px;
     color:var(--ink-soft);
@@ -1823,7 +1824,9 @@ function emptyExplain(r){
 }
 const SOURCE_LABEL = {
   mapping: 'из таблицы маппинга',
-  rag: 'по смыслу из каталога'
+  rag: 'по смыслу из каталога',
+  // Склеенный ответ (17.11): готовая пара и поиск по одному продукту в одном блоке.
+  'mapping+rag': 'готовая пара и каталог'
 };
 
 // Плашка над ответом. Раньше любой ответ быстрого пути подписывался «проверено
@@ -1837,6 +1840,18 @@ function sourceLabel(r){
   if (kinds.size === 0) return SOURCE_LABEL.mapping;   // старый ответ без поля
   if (kinds.size === 1) return kinds.has('expert') ? 'проверено экспертом' : 'по истории подборов';
   return 'эксперт и история';
+}
+
+// В склеенном ответе подпись над блоком одна на все карточки, а в блоке и пара, и то, что нашёл
+// поиск. Поэтому происхождение пары показываем на самой карточке: «проверено экспертом» или
+// «по истории подборов». Карточки поиска остаются без подписи. В остальных ответах — null.
+function cardOrigin(m, r){
+  if (!r || r.source !== 'mapping+rag') return null;
+  const box = el('div', 'card-origin');
+  if (m.source_kind === 'expert') box.appendChild(el('span', 'tag tag--verified', 'проверено экспертом'));
+  else if (m.source_kind === 'history') box.appendChild(el('span', 'tag', 'по истории подборов'));
+  else return null;
+  return box;
 }
 
 // ---------- отзывы по карточкам (таблица feedback) ----------
@@ -2421,6 +2436,8 @@ function renderResults(payload, query, label){
       const left = el('div');
       left.appendChild(el('div', 'card-name', m.name || ''));
       if (m.vendor) left.appendChild(el('div', 'card-vendor', m.vendor));
+      const origin = cardOrigin(m, r);
+      if (origin) left.appendChild(origin);
       top.appendChild(left);
       top.appendChild(el('span', 'verdict ' + (m.verdict === 'strong' ? 'strong' : 'partial'),
         m.verdict === 'strong' ? 'подходит' : 'частично'));
